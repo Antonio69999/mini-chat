@@ -1,46 +1,44 @@
 <?php
 
 require_once('../utils/connect.php');
+require_once('../style/RandomColor.php');
+use \Colors\RandomColor;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $pseudo = $_POST['pseudo'];
 
-
-    $sql = "INSERT INTO users (pseudo) VALUES (:pseudo);";
-
-    $query = $db->prepare($sql);
-
-    $query->bindValue(':pseudo', $pseudo, PDO::PARAM_STR);
-
-    $query->execute();
-    header('Location: ../index.php');
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $date = date('H:i:s');
-    $datehour = $_POST['datehour'];
-    $textmessage = $_POST['textmessage'];
-    $idUser = "SELECT id_user FROM users";
-
-    // Récupérer l'id_user depuis la table users
-    $selectSql = "SELECT id_user FROM users WHERE pseudo = :pseudo";
-    $selectQuery = $db->prepare($selectSql);
-    $selectQuery->bindValue(':pseudo', $pseudo, PDO::PARAM_STR);
-    $selectQuery->execute();
-    $user = $selectQuery->fetch(PDO::FETCH_ASSOC);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') { //check si le formulaire est soumis avec la methode POST
+    $pseudo = $_POST['pseudo'];              //recupere la veleur du champà l'aide de $_POST['pseudo']
+    //et la stock dans la var $pseudo
+    $color = RandomColor::one();
+    // Check if the user already exists via a SELECT request
+    $selectUserSql = "SELECT id_user FROM users WHERE pseudo = :pseudo";
+    $selectUserQuery = $db->prepare($selectUserSql);
+    $selectUserQuery->bindValue(':pseudo', $pseudo, PDO::PARAM_STR);
+    $selectUserQuery->execute();
+    $user = $selectUserQuery->fetch(PDO::FETCH_ASSOC);
 
     if ($user) {
         $idUser = $user['id_user'];
+    } else {
+        // User does not exist, insert a new record
+        $insertUserSql = "INSERT INTO users (pseudo, color) VALUES (:pseudo, :color)";     //si l'utilisateur n'exist pas une nouvelle ligne est inséré dans la tabke 'users'
+        $insertUserQuery = $db->prepare($insertUserSql);
+        $insertUserQuery->bindValue(':pseudo', $pseudo, PDO::PARAM_STR);
+        $insertUserQuery->bindValue(':color', $color, PDO::PARAM_STR);
+        $insertUserQuery->execute();
+        $idUser = $db->lastInsertId();
+    }
 
-        // Insérer le message dans la table messages
-        $insertSql = "INSERT INTO messages (id_user, datehour, textmessage) VALUES (:id_user, :datehour, :textmessage)";
-        $insertQuery = $db->prepare($insertSql);
-        $insertQuery->bindValue(':id_user', $idUser, PDO::PARAM_INT);
-        $insertQuery->bindValue(':datehour', date('Y-m-d-H:i:s') . ' ' . $datehour, PDO::PARAM_STR);
-        $insertQuery->bindValue(':textmessage', $textmessage, PDO::PARAM_STR);
-        $insertQuery->execute();
+    $datehour = $_POST['datehour'];
+    $textmessage = $_POST['textmessage'];
 
-        header('Location: ../index.php');
-    } 
+    // Insert the message into the messages table
+    $insertMessageSql = "INSERT INTO messages (id_user, datehour, textmessage) 
+                         VALUES (:id_user, :datehour, :textmessage)";
+    $insertMessageQuery = $db->prepare($insertMessageSql);
+    $insertMessageQuery->bindValue(':id_user', $idUser, PDO::PARAM_INT);
+    $insertMessageQuery->bindValue(':datehour', date('Y-m-d-H:i:s') . ' ' . $datehour, PDO::PARAM_STR);
+    $insertMessageQuery->bindValue(':textmessage', $textmessage, PDO::PARAM_STR);
+    $insertMessageQuery->execute();
+
+    header('Location: ../index.php');
 }
-?>
